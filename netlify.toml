@@ -1,0 +1,3 @@
+[build]
+  base = "ceske-drahy/masterclass/quiz"
+  publish = "ceske-drahy/masterclass/quiz"

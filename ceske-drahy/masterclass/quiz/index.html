@@ -1091,6 +1091,13 @@
                 }
             }
 
+            // Statistika hlasování
+            const totalVotes = Object.values(voteData).length;
+            const correctVotes = Object.values(voteData).filter(v => v === correct).length;
+            const pct = totalVotes > 0 ? Math.round((correctVotes / totalVotes) * 100) : 0;
+
+            document.getElementById('totalVotes').innerHTML = `Hlasovalo: <strong>${totalVotes}</strong> · Správně: <strong>${correctVotes}</strong> (${pct} %)`;
+
             document.getElementById('revealComment').textContent = q.comment;
             document.getElementById('revealComment').classList.add('shown');
 

@@ -744,9 +744,9 @@
             <div id="quizFinished" class="quiz-finished hidden">
                 <div class="finished-emoji">🎉</div>
                 <div class="finished-title">Kvíz dokončen!</div>
-                <div style="margin-top: 40px; font-size: 18px; color: #ddd;">
-                    <p style="margin-bottom: 20px;">Děkujeme za účast!</p>
-                    <button class="landing-button" onclick="location.reload()" style="margin-top: 20px; max-width: 200px; margin-left: auto; margin-right: auto;">Znovu spustit</button>
+                <div id="presenterFinalStats" style="margin-top: 40px; max-width: 700px; width: 100%;"></div>
+                <div style="margin-top: 40px;">
+                    <button class="landing-button" onclick="location.reload()" style="max-width: 200px; margin-left: auto; margin-right: auto;">Znovu spustit</button>
                 </div>
             </div>
         </div>
@@ -1124,9 +1124,55 @@
             }
         }
 
+        // Vtipné hodnocení podle skóre
+        function getScoreComment(score, total) {
+            const pct = Math.round((score / total) * 100);
+            if (pct === 100) return { emoji: "🏆", text: "Absolutní znalec. Buď pracujete v PR oddělení, nebo jste si právě uvědomili, že pracujete v lepší firmě, než jste si mysleli." };
+            if (pct >= 80) return { emoji: "🎯", text: "Výborně! Víte o firmě víc než většina lidí na poradě vedení. Zvažte kariérní postup — nebo aspoň zvýšení sebevědomí." };
+            if (pct >= 60) return { emoji: "👍", text: "Solidní. Máte přehled, ale pár překvapení vám neuškodilo. Teď víte, čím se chlubit na příští rodinné večeři." };
+            if (pct >= 40) return { emoji: "🤔", text: "Průměr. Nic špatného, ale dneska jste se dozvěděli víc než za poslední rok čtení intranetu." };
+            if (pct >= 20) return { emoji: "😅", text: "Upřímně? České dráhy jsou zajímavější, než jste čekali. A to je vlastně dobrá zpráva." };
+            return { emoji: "🫣", text: "Nevadí. Teď víte, že vaše firma poráží Deutsche Bahn i Japonce. S tímhle vědomím se žije líp." };
+        }
+
         function showQuizFinished() {
             document.getElementById('quizContent').classList.add('hidden');
             document.getElementById('quizFinished').classList.remove('hidden');
+            document.getElementById('qrSection').classList.add('hidden');
+
+            // Celkové statistiky z Firebase
+            db.ref(`rooms/${roomCode}/votes`).once('value', (snapshot) => {
+                const allVotes = snapshot.val() || {};
+                let totalVoters = new Set();
+                let totalCorrect = 0;
+                let totalAnswers = 0;
+
+                for (let qi = 0; qi < QUIZ_DATA.length; qi++) {
+                    const qVotes = allVotes[qi] || {};
+                    for (const [vid, answer] of Object.entries(qVotes)) {
+                        totalVoters.add(vid);
+                        totalAnswers++;
+                        if (answer === QUIZ_DATA[qi].correct) totalCorrect++;
+                    }
+                }
+
+                const voterCount = totalVoters.size;
+                const avgScore = voterCount > 0 ? (totalCorrect / voterCount) : 0;
+                const avgPct = voterCount > 0 ? Math.round((totalCorrect / totalAnswers) * 100) : 0;
+                const comment = getScoreComment(Math.round(avgScore), QUIZ_DATA.length);
+
+                const statsEl = document.getElementById('presenterFinalStats');
+                statsEl.innerHTML = `
+                    <div style="font-size: 22px; color: #aaa; margin-bottom: 24px;">
+                        Hlasovalo <strong style="color: #667eea;">${voterCount}</strong> účastníků ·
+                        Průměrné skóre: <strong style="color: #667eea;">${avgScore.toFixed(1)}/${QUIZ_DATA.length}</strong> (${avgPct} %)
+                    </div>
+                    <div class="score-bracket">
+                        <div class="score-count">${comment.emoji} Průměrný výsledek publika</div>
+                        <div class="score-text">${comment.text}</div>
+                    </div>
+                `;
+            });
         }
 
         function generateQRCode() {
@@ -1172,8 +1218,8 @@
                     isRevealed = false;
                     renderQuestionVoter();
                 } else if (q === -1) {
-                    // Quiz finished
-                    document.getElementById('voterQuizContent').innerHTML = '<div style="text-align: center; font-size: 32px; font-weight: 700; color: #667eea;">Děkujeme za účast!</div>';
+                    // Kvíz dokončen – zobrazit osobní skóre
+                    showVoterFinished();
                 }
             });
 
@@ -1245,6 +1291,33 @@
                     indicator.className = 'result-indicator wrong';
                     indicator.innerHTML = `<div>Nesprávně</div><div style="font-size: 20px; margin-top: 12px;">Správná odpověď: <strong>${q.correct}</strong></div>`;
                 }
+            });
+        }
+
+        function showVoterFinished() {
+            // Spočítat osobní skóre z Firebase
+            db.ref(`rooms/${roomCode}/votes`).once('value', (snapshot) => {
+                const allVotes = snapshot.val() || {};
+                let score = 0;
+
+                for (let qi = 0; qi < QUIZ_DATA.length; qi++) {
+                    const qVotes = allVotes[qi] || {};
+                    if (qVotes[voterId] === QUIZ_DATA[qi].correct) score++;
+                }
+
+                const comment = getScoreComment(score, QUIZ_DATA.length);
+
+                document.getElementById('voterQuizContent').innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 80px; margin-bottom: 16px;">${comment.emoji}</div>
+                        <div style="font-size: 32px; font-weight: 800; color: #1a1a2e; margin-bottom: 8px;">Kvíz dokončen!</div>
+                        <div style="font-size: 48px; font-weight: 800; color: #667eea; margin-bottom: 24px;">${score}/${QUIZ_DATA.length}</div>
+                        <div style="background: white; border-radius: 12px; padding: 24px; border-left: 4px solid #667eea; text-align: left; font-size: 17px; line-height: 1.6; color: #333;">
+                            ${comment.text}
+                        </div>
+                        <div style="margin-top: 32px; font-size: 16px; color: #999;">Děkujeme za účast!</div>
+                    </div>
+                `;
             });
         }
     </script>

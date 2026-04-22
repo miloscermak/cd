@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kvíz: Co víte o E.ON?</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ============================================
+           LANDING PAGE
+           ============================================ */
+        .landing-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #6B0F6E 0%, #E2001A 100%);
+            padding: 20px;
+        }
+
+        .landing-container {
+            background: white;
+            border-radius: 16px;
+            padding: 60px 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .landing-title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: #1a1a2e;
+        }
+
+        .landing-subtitle {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .landing-button {
+            background: #E2001A;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            margin-bottom: 16px;
+        }
+
+        .landing-button:hover {
+            background: #B8001A;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(226, 0, 26, 0.4);
+        }
+
+        .landing-button:active {
+            transform: translateY(0);
+        }
+
+        .landing-input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.3s ease;
+        }
+
+        .landing-input:focus {
+            outline: none;
+            border-color: #E2001A;
+        }
+
+        .landing-input::placeholder {
+            color: #999;
+        }
+
+        .divider {
+            margin: 32px 0;
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .divider::before {
+            content: "";
+            display: block;
+            height: 1px;
+            background: #ddd;
+            margin-bottom: 16px;
+        }
+
+        /* ============================================
+           PRESENTER VIEW
+           ============================================ */
+        .presenter-view {
+            background: #1a1a2e;
+            color: white;
+            min-height: 100vh;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .presenter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .presenter-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .room-info {
+            font-size: 14px;
+            color: #aaa;
+            text-align: right;
+        }
+
+        .room-code-display {
+            font-size: 18px;
+            font-weight: 700;
+            color: #E2001A;
+            margin-top: 4px;
+        }
+
+        .presenter-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .question-number {
+            font-size: 14px;
+            font-weight: 600;
+            color: #E2001A;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .question-text {
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 60px;
+            color: #fff;
+        }
+
+        .answers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .answer-card {
+            border-radius: 12px;
+            padding: 32px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+            position: relative;
+            overflow: hidden;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .answer-card.a { background: #e74c3c; }
+        .answer-card.b { background: #3498db; }
+        .answer-card.c { background: #f39c12; }
+        .answer-card.d { background: #2ecc71; }
+
+        .answer-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .answer-card.revealed.correct {
+            border-color: #fff;
+            box-shadow: 0 0 30px rgba(46, 204, 113, 0.6);
+        }
+
+        .answer-card.revealed.wrong {
+            opacity: 0.4;
+            filter: grayscale(1);
+        }
+
+        .answer-letter {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+
+        .answer-text {
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .vote-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .vote-item {
+            position: relative;
+        }
+
+        .vote-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #aaa;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .vote-bar-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            height: 40px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .vote-bar {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 12px;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .vote-bar.a { background: #e74c3c; }
+        .vote-bar.b { background: #3498db; }
+        .vote-bar.c { background: #f39c12; }
+        .vote-bar.d { background: #2ecc71; }
+
+        .vote-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+            z-index: 2;
+            position: relative;
+        }
+
+        .answer-checkmark {
+            position: absolute;
+            top: 50%;
+            right: 24px;
+            transform: translateY(-50%);
+            font-size: 28px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .answer-card.revealed.correct .answer-checkmark {
+            opacity: 1;
+        }
+
+        .reveal-comment {
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #E2001A;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 32px;
+            display: none;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #ddd;
+        }
+
+        .reveal-comment.shown {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .presenter-actions {
+            display: flex;
+            gap: 16px;
+            margin-top: 40px;
+        }
+
+        .btn {
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .btn-reveal {
+            background: #E2001A;
+            color: white;
+        }
+
+        .btn-reveal:hover {
+            background: #B8001A;
+            transform: translateY(-2px);
+        }
+
+        .btn-next {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .btn-next:hover {
+            background: #27ae60;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .total-votes {
+            font-size: 18px;
+            font-weight: 600;
+            color: #E2001A;
+            margin-bottom: 24px;
+        }
+
+        .qr-section {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            z-index: 20;
+        }
+
+        #qrCode {
+            display: block;
+            margin: 0 auto;
+        }
+
+        .qr-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        .quiz-finished {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .finished-title {
+            font-size: 64px;
+            font-weight: 800;
+            margin-bottom: 32px;
+            color: #2ecc71;
+        }
+
+        .finished-emoji {
+            font-size: 120px;
+            margin-bottom: 32px;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .score-bracket {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 16px auto;
+            max-width: 600px;
+            text-align: left;
+            border-left: 4px solid #E2001A;
+        }
+
+        .score-count {
+            font-size: 24px;
+            font-weight: 700;
+            color: #E2001A;
+            margin-bottom: 12px;
+        }
+
+        .score-text {
+            font-size: 18px;
+            color: #ddd;
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           VOTER VIEW
+           ============================================ */
+        .voter-view {
+            background: #f8f9fa;
+            color: #1a1a2e;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .voter-header {
+            text-align: center;
+            margin-bottom: 32px;
+            margin-top: 20px;
+        }
+
+        .voter-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+
+        .voter-question-number {
+            font-size: 12px;
+            font-weight: 600;
+            color: #E2001A;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .voter-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .voter-question-text {
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 40px;
+            color: #1a1a2e;
+        }
+
+        .voter-answers {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+
+        .voter-answer-btn {
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .voter-answer-btn.a { background: #e74c3c; }
+        .voter-answer-btn.b { background: #3498db; }
+        .voter-answer-btn.c { background: #f39c12; }
+        .voter-answer-btn.d { background: #2ecc71; }
+
+        .voter-answer-btn:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .voter-answer-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .voter-answer-letter {
+            font-weight: 700;
+            margin-right: 8px;
+            font-size: 20px;
+        }
+
+        .voter-voted {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 12px;
+            margin-top: 40px;
+        }
+
+        .voter-voted.shown {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .voted-checkmark {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .voted-text {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2ecc71;
+        }
+
+        .result-indicator {
+            display: none;
+            text-align: center;
+            padding: 32px;
+            margin-top: 32px;
+            border-radius: 12px;
+            font-size: 48px;
+            font-weight: 700;
+            animation: slideIn 0.3s ease;
+        }
+
+        .result-indicator.correct {
+            display: block;
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .result-indicator.wrong {
+            display: block;
+            background: #fadbd8;
+            color: #c0392b;
+        }
+
+        .result-indicator::before {
+            content: "";
+            display: block;
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .result-indicator.correct::before {
+            content: "✓";
+        }
+
+        .result-indicator.wrong::before {
+            content: "✗";
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 1200px) {
+            .question-text {
+                font-size: 36px;
+            }
+
+            .answers-grid {
+                gap: 16px;
+            }
+
+            .answer-card {
+                padding: 24px;
+                min-height: 120px;
+            }
+
+            .answer-text {
+                font-size: 16px;
+            }
+
+            .qr-section {
+                bottom: 20px;
+                right: 20px;
+                padding: 16px;
+            }
+
+            #qrCode {
+                max-width: 120px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .presenter-view {
+                padding: 20px;
+            }
+
+            .question-text {
+                font-size: 28px;
+                margin-bottom: 40px;
+            }
+
+            .answers-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 40px;
+            }
+
+            .vote-section {
+                grid-template-columns: 1fr;
+            }
+
+            .presenter-actions {
+                flex-direction: column;
+            }
+
+            .qr-section {
+                position: fixed;
+                bottom: 16px;
+                right: 16px;
+                padding: 12px;
+            }
+
+            #qrCode {
+                max-width: 100px;
+            }
+
+            .qr-label {
+                font-size: 10px;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- LANDING PAGE -->
+    <div id="landingPage" class="landing-page hidden">
+        <div class="landing-container">
+            <h1 class="landing-title">Kvíz</h1>
+            <p class="landing-subtitle">Co víte o E.ON?<br><span style="font-size:14px;color:#999;">Nechte to na nás.</span></p>
+            
+            <div id="presenterSection">
+                <button class="landing-button" onclick="createRoom()">Vytvořit kvíz</button>
+            </div>
+
+            <div class="divider">nebo</div>
+
+            <div id="voterSection">
+                <input 
+                    type="text" 
+                    id="roomCodeInput" 
+                    class="landing-input" 
+                    placeholder="Zadejte kód místnosti"
+                    maxlength="4"
+                    style="text-transform: uppercase;"
+                >
+                <button class="landing-button" onclick="joinRoom()">Připojit se</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRESENTER VIEW -->
+    <div id="presenterView" class="presenter-view hidden">
+        <div class="presenter-header">
+            <div class="presenter-title">Kvíz: Co víte o E.ON?</div>
+            <div>
+                <div class="room-info">Místnost:</div>
+                <div class="room-code-display" id="presenterRoomCode">-</div>
+            </div>
+        </div>
+
+        <div class="presenter-content">
+            <div id="quizContent">
+                <div class="question-number" id="questionNumber">-</div>
+                <div class="question-text" id="questionText">-</div>
+
+                <div class="answers-grid" id="answersGrid">
+                    <!-- Generated -->
+                </div>
+
+                <div class="total-votes" id="totalVotes">0/0 hlasovalo</div>
+
+                <div class="vote-section" id="voteSection">
+                    <!-- Generated -->
+                </div>
+
+                <div class="reveal-comment" id="revealComment"></div>
+
+                <div class="presenter-actions">
+                    <button class="btn btn-reveal" id="btnReveal" onclick="revealAnswer()">Odhalit odpověď</button>
+                    <button class="btn btn-next" id="btnNext" onclick="nextQuestion()" style="display: none;">Další otázka</button>
+                </div>
+            </div>
+
+            <div id="quizFinished" class="quiz-finished hidden">
+                <div class="finished-emoji">🎉</div>
+                <div class="finished-title">Kvíz dokončen!</div>
+                <div id="presenterFinalStats" style="margin-top: 40px; max-width: 700px; width: 100%;"></div>
+                <div style="margin-top: 40px;">
+                    <button class="landing-button" onclick="location.reload()" style="max-width: 200px; margin-left: auto; margin-right: auto;">Znovu spustit</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="qr-section" id="qrSection">
+            <div id="qrCode"></div>
+            <div class="qr-label">Naskenujte pro hlasování</div>
+        </div>
+    </div>
+
+    <!-- VOTER VIEW -->
+    <div id="voterView" class="voter-view hidden">
+        <div class="voter-header">
+            <div class="voter-title">Kvíz</div>
+            <div class="voter-question-number" id="voterQuestionNumber">-</div>
+        </div>
+
+        <div class="voter-content">
+            <div id="voterQuizContent">
+                <div class="voter-question-text" id="voterQuestionText">-</div>
+
+                <div class="voter-answers" id="voterAnswers">
+                    <!-- Generated -->
+                </div>
+
+                <div class="voter-voted" id="voterVoted">
+                    <div class="voted-checkmark">✓</div>
+                    <div class="voted-text">Hlasováno!</div>
+                </div>
+
+                <div class="result-indicator" id="resultIndicator"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // FIREBASE CONFIGURATION
+        // ============================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyA8h0Kd5rmIpd8FguiN8cirf0OdJ8c6sT8",
+            authDomain: "cd-quiz-e6e3f.firebaseapp.com",
+            databaseURL: "https://cd-quiz-e6e3f-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "cd-quiz-e6e3f",
+            storageBucket: "cd-quiz-e6e3f.firebasestorage.app",
+            messagingSenderId: "967705562162",
+            appId: "1:967705562162:web:31bf5d8fc31270c536402b"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // ============================================
+        // QUIZ DATA
+        // ============================================
+        const QUIZ_DATA = [
+            {
+                question: "Kolik zákazníků má skupina E.ON v Evropě?",
+                options: {
+                    A: "12 milionů — jen velké trhy",
+                    B: "47 milionů — každý desátý Evropan, plus britský ostrov",
+                    C: "90 milionů — polovina EU",
+                    D: "200 milionů — včetně koček a psů"
+                },
+                correct: "B",
+                comment: "47 milionů zákazníků. Víc než 20 % občanů EU a Velké Británie spoléhá na dodávky od E.ON. K tomu bonus Turecko a Slovensko. Tohle už není firma, to je infrastruktura kontinentu."
+            },
+            {
+                question: "Jak dlouhé jsou distribuční sítě E.ON (elektřina + plyn)?",
+                options: {
+                    A: "160 000 km — slušný národní hráč",
+                    B: "500 000 km — evropský rozměr",
+                    C: "1,6 milionu km — 40× obvod Země",
+                    D: "10 milionů km — někde se to muselo utrhnout"
+                },
+                correct: "C",
+                comment: "1,6 milionu kilometrů. Na tyhle sítě je připojeno 15 % všech obnovitelných zdrojů v Evropě. Bez E.ON sítí by zelená transformace byla PowerPoint."
+            },
+            {
+                question: "Kolik investic plánuje E.ON v letech 2024–2028?",
+                options: {
+                    A: "10 mld. EUR — opatrně",
+                    B: "25 mld. EUR — standardně",
+                    C: "43 mld. EUR — přes 50 % financováno zelenými dluhopisy",
+                    D: "100 mld. EUR — Musk level"
+                },
+                correct: "C",
+                comment: "43 miliard eur za pět let. Jen v roce 2024 to bylo 7,5 mld. Pro srovnání: celý roční rozpočet Rakouska je kolem 100 mld. eur. E.ON investuje půlku Rakouska každých pět let."
+            },
+            {
+                question: "Kolik nabíjecích bodů prodal E.ON zákazníkům v roce 2024?",
+                options: {
+                    A: "1 200 — niche business",
+                    B: "8 500",
+                    C: "22 765 — zhruba 62 denně",
+                    D: "100 000 — včetně prodlužovaček"
+                },
+                correct: "C",
+                comment: "22 765 dobíjecích stanic. E-mobilita přestala být PR příběh a stala se provozem. E.ON Drive teď řeší víc elektroaut denně, než některé automobilky prodají za týden."
+            },
+            {
+                question: "Kdy chce E.ON dosáhnout klimatické neutrality pro scope 1 a 2?",
+                options: {
+                    A: "2030 — amen",
+                    B: "2040 — ověřeno iniciativou SBTi",
+                    C: "2050 — pařížská klasika",
+                    D: "2070 — ať to řeší vnoučata"
+                },
+                correct: "B",
+                comment: "2040 pro scope 1 a 2, 2050 pro scope 3 (tedy včetně zákazníků). V souladu s 1,5 °C cílem Pařížské dohody. Scope 3 se má do roku 2030 snížit o 50 %."
+            },
+            {
+                question: "Jakou má E.ON průměrnou dobu přerušení dodávky (SAIDI) v Německu za rok?",
+                options: {
+                    A: "5 minut — utopie",
+                    B: "23 minut — průkopník efektivity sítí podle německého regulátora",
+                    C: "90 minut — evropský průměr",
+                    D: "5 hodin — zima je zima"
+                },
+                correct: "B",
+                comment: "23 minut ročně. Německý regulační úřad potvrdil, že E.ON je průkopníkem v účinnosti sítí. Pro srovnání: v Česku je průměr kolem 70 minut, v některých zemích i několik hodin."
+            },
+            {
+                question: "Jaký je oficiální claim integrované výroční zprávy E.ON za rok 2024?",
+                options: {
+                    A: "Energie, která mění svět",
+                    B: "Nechte to na nás",
+                    C: "Moc pro každého",
+                    D: "Wir sind die Energie"
+                },
+                correct: "B",
+                comment: "„Nechte to na nás.“ Pokračuje starší „O vaše energie se postaráme“. Zpráva je o tom, že zákazník nemusí rozumět sítím, dekarbonizaci ani trhu — E.ON to vyřeší za něj. Velmi německy."
+            },
+            {
+                question: "Kolik má E.ON zaměstnanců a kolik mezi nimi národností?",
+                options: {
+                    A: "30 000 zaměstnanců, 40 národností",
+                    B: "76 566 zaměstnanců, 114 národností",
+                    C: "150 000 zaměstnanců, 20 národností",
+                    D: "200 000 zaměstnanců, 200 národností"
+                },
+                correct: "B",
+                comment: "76 566 zaměstnanců (FTE), 114 národností. Průměrná doba ve firmě 12 let, dobrovolnicky odpracováno 25 514 hodin. Žen ve vedení je 26 % (cíl 32 % do 2031), v dozorčí radě 38 %."
+            },
+            {
+                question: "Jaká je navrhovaná dividenda E.ON na akcii za rok 2024?",
+                options: {
+                    A: "0,20 EUR — co s tím?",
+                    B: "0,55 EUR — meziročně +4 %",
+                    C: "1,20 EUR — královsky",
+                    D: "5,00 EUR — Berkshire style"
+                },
+                correct: "B",
+                comment: "0,55 EUR. Plán růstu až 5 % ročně do roku 2028. Sedmý rok v řadě navyšování. Rating BBB+/Baa2/BBB+, dluhový faktor 4,5 (strop je 5,0). Boringly excellent."
+            },
+            {
+                question: "Kolika startupy od roku 2020 E.ON prošel přes Future Energy Ventures a Group Innovation — a v kolika zemích?",
+                options: {
+                    A: "50 startupů z 10 zemí",
+                    B: "150 startupů ze 30 zemí",
+                    C: "500 startupů z 89 zemí",
+                    D: "2 000 startupů ze 150 zemí"
+                },
+                correct: "C",
+                comment: "500 startupů z 89 zemí. Jen v roce 2024 spustili 23 nových pilotů v 17 obchodních útvarech, smlouvy za 10,2 mil. eur. Free Electrons (6 energetik), Grid Startup Challenge (16 E.ON firem). E.ON je dnes taky venture investor."
+            }
+        ];
+
+        // ============================================
+        // STATE
+        // ============================================
+        let mode = null;
+        let roomCode = null;
+        let voterId = null;
+        let currentQuestion = 0;
+        let voteData = {};
+        let hasVoted = false;
+        let isRevealed = false;
+        let voterAnswerRefs = {};
+        let presenterListeners = [];
+
+        // Generate voter ID
+        voterId = Math.random().toString(36).substring(2, 15);
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+            const paramMode = params.get('mode');
+            const paramRoom = params.get('room');
+
+            if (paramMode === 'presenter' && paramRoom) {
+                mode = 'presenter';
+                roomCode = paramRoom.toUpperCase();
+                initPresenter();
+            } else if (paramRoom) {
+                mode = 'voter';
+                roomCode = paramRoom.toUpperCase();
+                initVoter();
+            } else {
+                showLandingPage();
+            }
+        });
+
+        // ============================================
+        // LANDING PAGE
+        // ============================================
+        function showLandingPage() {
+            document.getElementById('landingPage').classList.remove('hidden');
+            document.getElementById('presenterView').classList.add('hidden');
+            document.getElementById('voterView').classList.add('hidden');
+        }
+
+        function createRoom() {
+            roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+            window.location.href = `?mode=presenter&room=${roomCode}`;
+        }
+
+        function joinRoom() {
+            const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            if (code.length === 4) {
+                window.location.href = `?room=${code}`;
+            } else {
+                alert('Zadejte platný 4-znakový kód');
+            }
+        }
+
+        // ============================================
+        // PRESENTER MODE
+        // ============================================
+        function initPresenter() {
+            document.getElementById('landingPage').classList.add('hidden');
+            document.getElementById('voterView').classList.add('hidden');
+            document.getElementById('presenterView').classList.remove('hidden');
+
+            document.getElementById('presenterRoomCode').textContent = roomCode;
+
+            renderQuestionPresenter();
+            generateQRCode();
+            listenToRoomState();
+        }
+
+        function renderQuestionPresenter() {
+            const q = QUIZ_DATA[currentQuestion];
+            document.getElementById('questionNumber').textContent = `Otázka ${currentQuestion + 1}/10`;
+            document.getElementById('questionText').textContent = q.question;
+
+            const grid = document.getElementById('answersGrid');
+            grid.innerHTML = '';
+            for (const [letter, text] of Object.entries(q.options)) {
+                const card = document.createElement('div');
+                card.className = `answer-card ${letter.toLowerCase()}`;
+                card.id = `answer-${letter}`;
+                card.innerHTML = `
+                    <div>
+                        <div class="answer-letter">${letter}</div>
+                        <div class="answer-text">${text}</div>
+                    </div>
+                    <div class="answer-checkmark">✓</div>
+                `;
+                grid.appendChild(card);
+            }
+
+            const voteSection = document.getElementById('voteSection');
+            voteSection.innerHTML = '';
+            for (const letter of ['A', 'B', 'C', 'D']) {
+                const item = document.createElement('div');
+                item.className = 'vote-item';
+                item.innerHTML = `
+                    <div class="vote-label">${letter}</div>
+                    <div class="vote-bar-container">
+                        <div class="vote-bar ${letter.toLowerCase()}" id="bar-${letter}" style="width: 0%;">
+                            <span class="vote-text"></span>
+                        </div>
+                    </div>
+                `;
+                voteSection.appendChild(item);
+            }
+
+            document.getElementById('totalVotes').textContent = '0/0 hlasovalo';
+            document.getElementById('revealComment').innerHTML = '';
+            document.getElementById('revealComment').classList.remove('shown');
+            document.getElementById('btnReveal').style.display = 'block';
+            document.getElementById('btnNext').style.display = 'none';
+            isRevealed = false;
+
+            voteData = {};
+            listenToVotes();
+        }
+
+        function listenToVotes() {
+            const ref = db.ref(`rooms/${roomCode}/votes/${currentQuestion}`);
+            const listener = ref.on('value', (snapshot) => {
+                const votes = snapshot.val() || {};
+                voteData = votes;
+                updateVoteBars();
+            });
+            presenterListeners.push(() => ref.off('value', listener));
+        }
+
+        function updateVoteBars() {
+            const totals = { A: 0, B: 0, C: 0, D: 0 };
+            let totalVotes = 0;
+
+            for (const vote of Object.values(voteData)) {
+                if (vote && totals.hasOwnProperty(vote)) {
+                    totals[vote]++;
+                    totalVotes++;
+                }
+            }
+
+            const maxVotes = Math.max(...Object.values(totals), 1);
+
+            for (const letter of ['A', 'B', 'C', 'D']) {
+                const count = totals[letter];
+                const percentage = maxVotes > 0 ? (count / maxVotes) * 100 : 0;
+                const bar = document.getElementById(`bar-${letter}`);
+                const percent = Math.max(percentage, 3);
+                bar.style.width = percent + '%';
+
+                const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+                bar.querySelector('.vote-text').textContent = `${count} (${pct}%)`;
+            }
+
+            document.getElementById('totalVotes').textContent = `${totalVotes}/${Object.keys(voteData).length || 0} hlasovalo`;
+        }
+
+        function revealAnswer() {
+            isRevealed = true;
+            const q = QUIZ_DATA[currentQuestion];
+            const correct = q.correct;
+
+            for (const letter of ['A', 'B', 'C', 'D']) {
+                const card = document.getElementById(`answer-${letter}`);
+                card.classList.add('revealed');
+                if (letter === correct) {
+                    card.classList.add('correct');
+                } else {
+                    card.classList.add('wrong');
+                }
+            }
+
+            // Statistika hlasování
+            const totalVotes = Object.values(voteData).length;
+            const correctVotes = Object.values(voteData).filter(v => v === correct).length;
+            const pct = totalVotes > 0 ? Math.round((correctVotes / totalVotes) * 100) : 0;
+
+            document.getElementById('totalVotes').innerHTML = `Hlasovalo: <strong>${totalVotes}</strong> · Správně: <strong>${correctVotes}</strong> (${pct} %)`;
+
+            document.getElementById('revealComment').textContent = q.comment;
+            document.getElementById('revealComment').classList.add('shown');
+
+            db.ref(`rooms/${roomCode}/revealed`).set(true);
+
+            document.getElementById('btnReveal').style.display = 'none';
+            document.getElementById('btnNext').style.display = 'block';
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+
+            // Clean up listeners
+            presenterListeners.forEach(fn => fn());
+            presenterListeners = [];
+
+            if (currentQuestion >= QUIZ_DATA.length) {
+                showQuizFinished();
+                db.ref(`rooms/${roomCode}/currentQuestion`).set(-1);
+            } else {
+                db.ref(`rooms/${roomCode}/currentQuestion`).set(currentQuestion);
+                db.ref(`rooms/${roomCode}/revealed`).set(false);
+                renderQuestionPresenter();
+            }
+        }
+
+        // Vtipné hodnocení podle skóre
+        function getScoreComment(score, total) {
+            const pct = Math.round((score / total) * 100);
+            if (pct === 100) return { emoji: "🏆", text: "Absolutní znalec. Buď jste tu výroční zprávu psal(a), nebo jste si právě uvědomili, že pracujete v lepší firmě, než jste tušili." };
+            if (pct >= 80) return { emoji: "🎯", text: "Výborně! Víte o E.ON víc než většina investičních analytiků. Zvažte kariéru v IR — nebo aspoň zvýšení sebevědomí." };
+            if (pct >= 60) return { emoji: "👍", text: "Solidní. Pár překvapení vám neuškodilo. Teď máte čím argumentovat na příští porady představenstva." };
+            if (pct >= 40) return { emoji: "🤔", text: "Průměr. Nic dramatického, ale dneska jste se dozvěděli víc než za poslední rok čtení interních newsletterů." };
+            if (pct >= 20) return { emoji: "😅", text: "Upřímně? E.ON je zajímavější, než jste čekali. A to je vlastně dobrá zpráva." };
+            return { emoji: "🫣", text: "Nevadí. Nechte to na nás — sítě, data i tuhle statistiku. Příště to půjde." };
+        }
+
+        function showQuizFinished() {
+            document.getElementById('quizContent').classList.add('hidden');
+            document.getElementById('quizFinished').classList.remove('hidden');
+            document.getElementById('qrSection').classList.add('hidden');
+
+            // Celkové statistiky z Firebase
+            db.ref(`rooms/${roomCode}/votes`).once('value', (snapshot) => {
+                const allVotes = snapshot.val() || {};
+                let totalVoters = new Set();
+                let totalCorrect = 0;
+                let totalAnswers = 0;
+
+                for (let qi = 0; qi < QUIZ_DATA.length; qi++) {
+                    const qVotes = allVotes[qi] || {};
+                    for (const [vid, answer] of Object.entries(qVotes)) {
+                        totalVoters.add(vid);
+                        totalAnswers++;
+                        if (answer === QUIZ_DATA[qi].correct) totalCorrect++;
+                    }
+                }
+
+                const voterCount = totalVoters.size;
+                const avgScore = voterCount > 0 ? (totalCorrect / voterCount) : 0;
+                const avgPct = voterCount > 0 ? Math.round((totalCorrect / totalAnswers) * 100) : 0;
+                const comment = getScoreComment(Math.round(avgScore), QUIZ_DATA.length);
+
+                const statsEl = document.getElementById('presenterFinalStats');
+                statsEl.innerHTML = `
+                    <div style="font-size: 22px; color: #aaa; margin-bottom: 24px;">
+                        Hlasovalo <strong style="color: #E2001A;">${voterCount}</strong> účastníků ·
+                        Průměrné skóre: <strong style="color: #E2001A;">${avgScore.toFixed(1)}/${QUIZ_DATA.length}</strong> (${avgPct} %)
+                    </div>
+                    <div class="score-bracket">
+                        <div class="score-count">${comment.emoji} Průměrný výsledek publika</div>
+                        <div class="score-text">${comment.text}</div>
+                    </div>
+                `;
+            });
+        }
+
+        function generateQRCode() {
+            const voterUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
+            const qrContainer = document.getElementById('qrCode');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: voterUrl,
+                width: 150,
+                height: 150,
+                colorDark: '#1a1a2e',
+                colorLight: '#ffffff',
+            });
+        }
+
+        function listenToRoomState() {
+            // Ensure room exists
+            db.ref(`rooms/${roomCode}`).set({
+                currentQuestion: 0,
+                revealed: false,
+            }, (err) => {
+                if (err) console.error('Error creating room:', err);
+            });
+        }
+
+        // ============================================
+        // VOTER MODE
+        // ============================================
+        function initVoter() {
+            document.getElementById('landingPage').classList.add('hidden');
+            document.getElementById('presenterView').classList.add('hidden');
+            document.getElementById('voterView').classList.remove('hidden');
+
+            listenToPresenterState();
+        }
+
+        function listenToPresenterState() {
+            db.ref(`rooms/${roomCode}/currentQuestion`).on('value', (snapshot) => {
+                const q = snapshot.val();
+                if (q !== null && q !== -1) {
+                    currentQuestion = q;
+                    hasVoted = false;
+                    isRevealed = false;
+                    renderQuestionVoter();
+                } else if (q === -1) {
+                    // Kvíz dokončen – zobrazit osobní skóre
+                    showVoterFinished();
+                }
+            });
+
+            db.ref(`rooms/${roomCode}/revealed`).on('value', (snapshot) => {
+                isRevealed = snapshot.val() || false;
+                if (isRevealed && hasVoted) {
+                    showVoterResult();
+                }
+            });
+        }
+
+        function renderQuestionVoter() {
+            const q = QUIZ_DATA[currentQuestion];
+            document.getElementById('voterQuestionNumber').textContent = `Otázka ${currentQuestion + 1}/10`;
+            document.getElementById('voterQuestionText').textContent = q.question;
+
+            const answersContainer = document.getElementById('voterAnswers');
+            answersContainer.innerHTML = '';
+            voterAnswerRefs = {};
+
+            for (const [letter, text] of Object.entries(q.options)) {
+                const btn = document.createElement('button');
+                btn.className = `voter-answer-btn ${letter.toLowerCase()}`;
+                btn.innerHTML = `<span class="voter-answer-letter">${letter}</span>${text}`;
+                btn.onclick = () => submitVote(letter);
+                answersContainer.appendChild(btn);
+                voterAnswerRefs[letter] = btn;
+            }
+
+            document.getElementById('voterVoted').classList.remove('shown');
+            document.getElementById('resultIndicator').classList.remove('correct', 'wrong');
+            document.getElementById('resultIndicator').innerHTML = '';
+        }
+
+        function submitVote(letter) {
+            if (hasVoted) return;
+            hasVoted = true;
+
+            // Disable all buttons
+            for (const btn of Object.values(voterAnswerRefs)) {
+                btn.disabled = true;
+            }
+
+            // Store vote
+            db.ref(`rooms/${roomCode}/votes/${currentQuestion}/${voterId}`).set(letter);
+
+            // Show confirmation
+            document.getElementById('voterVoted').classList.add('shown');
+
+            // Show result if already revealed
+            if (isRevealed) {
+                setTimeout(() => showVoterResult(), 500);
+            }
+        }
+
+        function showVoterResult() {
+            const q = QUIZ_DATA[currentQuestion];
+            
+            // Get the actual vote from Firebase
+            db.ref(`rooms/${roomCode}/votes/${currentQuestion}/${voterId}`).once('value', (snapshot) => {
+                const vote = snapshot.val();
+                if (!vote) return;
+
+                const indicator = document.getElementById('resultIndicator');
+                if (vote === q.correct) {
+                    indicator.className = 'result-indicator correct';
+                    indicator.innerHTML = '<div>Správně!</div>';
+                } else {
+                    indicator.className = 'result-indicator wrong';
+                    indicator.innerHTML = `<div>Nesprávně</div><div style="font-size: 20px; margin-top: 12px;">Správná odpověď: <strong>${q.correct}</strong></div>`;
+                }
+            });
+        }
+
+        function showVoterFinished() {
+            // Spočítat osobní skóre z Firebase
+            db.ref(`rooms/${roomCode}/votes`).once('value', (snapshot) => {
+                const allVotes = snapshot.val() || {};
+                let score = 0;
+
+                for (let qi = 0; qi < QUIZ_DATA.length; qi++) {
+                    const qVotes = allVotes[qi] || {};
+                    if (qVotes[voterId] === QUIZ_DATA[qi].correct) score++;
+                }
+
+                const comment = getScoreComment(score, QUIZ_DATA.length);
+
+                document.getElementById('voterQuizContent').innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 80px; margin-bottom: 16px;">${comment.emoji}</div>
+                        <div style="font-size: 32px; font-weight: 800; color: #1a1a2e; margin-bottom: 8px;">Kvíz dokončen!</div>
+                        <div style="font-size: 48px; font-weight: 800; color: #E2001A; margin-bottom: 24px;">${score}/${QUIZ_DATA.length}</div>
+                        <div style="background: white; border-radius: 12px; padding: 24px; border-left: 4px solid #E2001A; text-align: left; font-size: 17px; line-height: 1.6; color: #333;">
+                            ${comment.text}
+                        </div>
+                        <div style="margin-top: 32px; font-size: 16px; color: #999;">Děkujeme za účast!</div>
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
